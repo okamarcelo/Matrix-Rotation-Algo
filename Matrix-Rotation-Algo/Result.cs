@@ -2,13 +2,13 @@
 
 public static class RingExtensions
 {
-    public static List<int?> Rotate (this List<int?> that)
+    public static List<int?> Rotate(this List<int?> that)
     {
         var carry = that[0];
         return new List<int?>(that.Skip(1).Take(that.Count() - 1).Append(carry).ToList());
     }
 
-    public static List<int?> Rotate (this List<int?> that, int times)
+    public static List<int?> Rotate(this List<int?> that, int times)
     {
         var x = that;
         for (int count = 0; count < times; count++)
@@ -17,71 +17,121 @@ public static class RingExtensions
         }
         return x;
     }
+
+    public static List<int?> ExtractRing(this List<List<int?>> that, int ringLevel)
+    {
+        var width = that.First().Count();
+        var height = that.Count();
+        var topBorder = that.Skip(ringLevel)
+                            .First()
+                            .Skip(ringLevel)
+                            .Take(width - ringLevel * 2);
+        var bottomBorder = that.Skip(height - ringLevel - 1)
+                               .First()
+                               .Skip(ringLevel)
+                               .Take(width - ringLevel * 2)
+                               .Reverse();
+        var rightBorder = that.Skip(ringLevel + 1)
+                              .Take(height - ringLevel * 2 - 2)
+                              .Select(row => row.Last());
+        var leftBorder = that.Skip(ringLevel + 1)
+                              .Select(row => row.First())
+                              .Take(height - ringLevel * 2 - 2)
+                              .Reverse();
+
+        return topBorder.Concat(rightBorder).Concat(bottomBorder).Concat(leftBorder).ToList();
+    }
+
+    public static List<List<int?>> InsertRingIntoMatrix(this List<int?> ring, List<List<int?>> matrix, int ringLevel)
+    {
+        var width = matrix.First().Count() - ringLevel * 2;
+        var height = matrix.Count() - ringLevel * 2;
+
+        var topBorder = ring.Take(width);
+        var rightBorder = ring.Skip(topBorder.Count())
+                              .Take(height - 2);
+        var bottomBorder = ring.Skip(topBorder.Count() + rightBorder.Count())
+                               .Take(width)
+                               .Reverse();
+        var leftBorder = ring.Skip(topBorder.Count() + rightBorder.Count() + bottomBorder.Count())
+                             .Take(height - 2)
+                             .Reverse();
+
+        var matrixArray = new int?[matrix.Count][];
+
+        for (int rowCount = 0; rowCount < matrix.Count; rowCount++)
+        {
+            matrixArray[rowCount] = matrix.Skip(rowCount).First().ToArray();
+        }
+
+        for (int rowCount = ringLevel; rowCount < (matrix.Count - ringLevel); rowCount++)
+        {
+            if (rowCount == ringLevel)
+            {
+                topBorder.ToArray().CopyTo(matrixArray[rowCount], ringLevel);
+            }
+            else if (rowCount == (matrix.Count - ringLevel - 1))
+            {
+                bottomBorder.ToArray().CopyTo(matrixArray[rowCount], ringLevel);
+            }
+            else
+            {
+                matrixArray[rowCount][0 + ringLevel] = (leftBorder.ToArray()[rowCount - 1]);
+                matrixArray[rowCount][^(ringLevel + 1)] = rightBorder.ToArray()[rowCount - 1];
+            }
+        }
+
+        var matrixReturn = new List<List<int?>>();
+        foreach (var l in matrixArray)
+        {
+            matrixReturn.Add(l.ToList());
+        }
+
+        return matrixReturn;
+    }
+    public static List<int?> NormalizeRow(this List<int> that, int width)
+    {
+        var diff = width - that.Count;
+        var l = that.Cast<int?>();
+        for (int count = 0; count < diff; count++)
+        {
+            l = l.Append(null);
+        }
+        return l.ToList();
+    }
+    public static List<List<int?>> NormalizeMatrix(this List<List<int>> that, int width)
+    {
+        return that.Select(x => x.NormalizeRow(width)).ToList();
+    }
+
+    public static List<List<int?>> RotateCounterClockWise(this List<List<int?>> that, int rotationTimes)
+    {
+        var height = that.Count;
+        var rings = height / 2 + height % 2;
+        for (int count =0; count < rings; count++ )
+        {
+            that = that.ExtractRing(count).Rotate(rotationTimes).InsertRingIntoMatrix(that, count);
+        }
+        return that;
+    }
 }
 
 public class Result
 {
-    public static List<int?> extractRing(List<List<int?>> matrix, int ringLevel)
-    {
-        var borderSize = matrix[0].Count;
-        var usedMatrix = matrix.Skip(ringLevel).Take(borderSize - ringLevel);
-        var topBorder = usedMatrix.First().Skip(1);
-        var rightBorder = usedMatrix.Select(x => x.Last()).Skip(1);
-        var bottomBorder = usedMatrix.Last().Skip(0).Reverse().Skip(1);
-        var leftBorder = usedMatrix.Select(x => x.First()).Reverse().Skip(1);
-        return topBorder.Concat(rightBorder).Concat(bottomBorder).Concat(leftBorder).ToList();
-    }
 
-    public static List<List<int?>> insertRing(List<int?> ring, int ringLevel, List<List<int?>> matrix)
-    {
-        var borderSize = ring.Count / 4;
-        var topBorder = ring.Skip(0 * borderSize).Take(borderSize);
-        var rightBorder = ring.Skip(1 * borderSize).Take(borderSize);
-        var bottomBorder = ring.Skip(2 * borderSize).Take(borderSize);
-        var leftBorder = ring.Skip(3 * borderSize).Take(borderSize);
-
-        var matrixResult = new List<List<int?>>();
-
-        matrixResult.Add(topBorder.Concat(rightBorder.Take(1)).ToList());
-
-        var innerRightBorder = rightBorder.Skip(1);
-        var innerLeftBorder = leftBorder.Skip(1).Reverse();
-
-        for (int rowCount = 0; rowCount < borderSize - 1; rowCount++)
-        {
-            var usedRow = new int?[borderSize + 1];
-            usedRow[0] = (innerLeftBorder.ToArray()[rowCount]);
-            usedRow[^1] = innerRightBorder.ToArray()[rowCount];
-            matrixResult.Add(usedRow.ToList());
-        }
-
-        matrixResult.Add(bottomBorder.Concat(leftBorder.Take(1)).Reverse().ToList());
-
-        return matrixResult;
-    }
 
 
     public static void matrixRotation(List<List<int>> matrix, int r)
     {
-        var width = matrix.Select(x => x.Count).Max();
-        var rings = width / 2;
-        List<List<int?>> usedMatrix = new List<List<int?>>();
-        matrix.ForEach(x =>
-        {
-            var l = new List<int?>();
-            l.AddRange(x.Select(y => (int?)y));
-            while (l.Count < width)
-            {
-                l.Append(null);
-            }
-        });
+        var rings = 2 / 2;
+
         for (int ringCount = 0; ringCount < rings; ringCount++)
         {
             //var rotatedRing = rotateRing(extractRing(usedMatrix, ringCount), r);
             //insertRing(rotatedRing, ringCount, usedMatrix);
         }
         var sb = new StringBuilder();
-        usedMatrix.ForEach(x => sb.AppendLine(string.Join(' ', x.Select(y => y?.ToString() ?? " "))));
+        //usedMatrix.ForEach(x => sb.AppendLine(string.Join(' ', x.Select(y => y?.ToString() ?? " "))));
         Console.Write(sb.ToString());
     }
 
